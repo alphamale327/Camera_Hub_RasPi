@@ -1,10 +1,11 @@
-import time
 import sendimage
 from serialinterface import serialThread
 from collections import deque
 import serial
 from xbee import XBee
+import datetime
 import time
+import os.path
 
 PORT='/dev/ttyUSB0'
 BAUD_RATE=57600
@@ -27,6 +28,23 @@ command_queue = deque([])
 serialMonitor = serialThread(1, PORT, BAUD_RATE,1, data_queue, command_queue)
 serialMonitor.start()
 
+logfile = datetime.datetime.now().strftime('%b_%d_%Y')
+if not os.path.isfile('/var/www/logFiles/%s.txt' %logfile):
+    f = open('/var/www/logFiles/%s.txt' %logfile, 'w')
+    f.close
+
+def writeLog(string):
+    global logfile
+    daynow = datetime.datetime.now().strftime('%b_%d_%Y')
+    timestamp = datetime.datetime.now().strftime('%B_%d_%Y__%I:%M:%S')
+    if daynow == logfile:
+        f = open('/var/www/logFiles/%s.txt' %logfile, 'a')
+    else:
+        logfile = datetime.datetime.now().strftime('%b_%d_%Y')
+        f = open('/var/www/logFiles/%s.txt' % logfile, 'w')
+    f.write('%s     %s' %(timestamp, string))
+    f.close
+    
 while True:
     time.sleep(1)
     # Check Data Queue
@@ -41,6 +59,7 @@ while True:
             sendimage.sendImage('sskyler.lee@gmail.com', 'leesy6714', email_address, data[1])
             print 'To: ' + email_address
             email_file.close()
+            writeLog('A motion detected. Email Sent\n')
         if data[0] == 'battery_life':
             print 'Battery Life: ' + data[1].encode("hex")
 
@@ -53,25 +72,29 @@ while True:
         print 'Command received: ' + command 
         # PIR Sensing Disable
         if command == '1': 
-            print 'Motion Sensing Disable'     
+            print 'Motion Sensing Disable'
+            writeLog('Motion Sensing Disable\n')
             xbee.remote_at(dest_addr_long=device["EP1"],command='D0',parameter='\x05')
             time.sleep(1)		
             xbee.remote_at(dest_addr_long=device["EP1"],command='D0',parameter='\x04')
         # PIR Sensing Enable
         elif command == '2':
             print 'Motion Sensing Enable'
+            writeLog('Motion Sensing Enable\n')
             xbee.remote_at(dest_addr_long=device["EP1"],command='D1',parameter='\x05')
             time.sleep(1)		
             xbee.remote_at(dest_addr_long=device["EP1"],command='D1',parameter='\x04')
         # Take a picture		
         elif command == '3':
             print 'Take A Picture'
+            writeLog('Take A Picture\n')
             xbee.remote_at(dest_addr_long=device["EP1"],command='D2',parameter='\x05')
             time.sleep(1)		
             xbee.remote_at(dest_addr_long=device["EP1"],command='D2',parameter='\x04')
 		# Check Battery	
         elif command == '4':
             print 'Check Battery Life'
+            writeLog('Check Battery Life\n')
             xbee.remote_at(dest_addr_long=device["EP1"],command='D3',parameter='\x05')
             time.sleep(1)		
             xbee.remote_at(dest_addr_long=device["EP1"],command='D3',parameter='\x04')

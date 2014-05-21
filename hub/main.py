@@ -16,10 +16,10 @@ ser = serial.Serial(PORT, BAUD_RATE)
 xbee=XBee(ser)
 
 #MAC, number written on the back of the XBee module
-# CO3 = my coordinator
+# HUB = my hub
 # EP1 = my endpoint
 device={
-        "CO3":'\x00\x13\xa2\x00\x40\xa7\x9b\xad',
+        "HUB":'\x00\x13\xa2\x00\x40\xa7\x9b\xad',
         "EP1":'\x00\x13\xa2\x00\x40\xb3\x65\x5c'
 }
 

@@ -16,6 +16,7 @@ class serialThread(threading.Thread):
         self.command_queue = command_queue
 
     def run(self):
+        
         strbyte = self.ser.read()
         lastbyte = ''
         while True:
@@ -32,51 +33,62 @@ class serialThread(threading.Thread):
                 else:
                     self.state = 'reading'
                     self.databuffer += strbyte
+                    if strbyte.encode('hex') == '7e':
+                        for x in range(0,7):
+                            dump = self.ser.read()
+                        self.databuffer = ''
+                    else:
+                        # If data is a jpg image:
+                        if lastbyte.encode("hex") == 'ff' and strbyte.encode('hex') == 'd8':
+                            print 'JPG recognized, downloading...'
+                            image_file = self.getJPG()
+                            if image_file != 'error':
+                                print 'JPG successfully downloaded'
+                                timestamp = datetime.datetime.now().strftime('%B%d_%Y %I:%M:%S')
+                                self.data_queue.append(('image','/var/www/pictures/%s.jpg' % timestamp, image_file))
+                            else:
+                                print 'Malformed JPEG File'
+                        
+                        # If data is battery life:
+                        if strbyte.encode('hex') == 'f1':
+                            print 'Battery Life recognized, downloading...'
+                            batterylife = self.getBatteryLife()
+                            self.data_queue.append(('battery_life', batterylife))
 
-                    # If data is a jpg image:
-                    if lastbyte.encode("hex") == 'ff' and strbyte.encode('hex') == 'd8':
-                        print 'JPG recognized, downloading...'
-                        image_file = self.getJPG()
-                        if image_file != 'error':
-                            print 'JPG successfully downloaded'
-                            timestamp = datetime.datetime.now().strftime('%d%b%Y_%I%M_%s')
-                            self.data_queue.append(('image','/var/www/pictures/%s.jpg' % timestamp, image_file))
-                        else:
-                            print 'Malformed JPEG File'
-                    
-                    # If data is battery life:
-                    if strbyte.encode('hex') == 'f1':
-                        print 'Battery Life recognized, downloading...'
-                        batterylife = self.getBatteryLife()
-                        self.data_queue.append(('battery_life', batterylife))
+                        # If command successfully executed:
+                        if strbyte.encode('hex') == 'f8':
+                            print 'Command successfully executed...'
+                            self.data_queue.append(('command_executed', 'True'))
 
-                    # If command successfully executed:
-                    if strbyte.encode('hex') == 'f8':
-                        print 'Command successfully executed...'
-                        self.data_queue.append(('command_executed', 'True'))
-
-                    # If command not successfully executed:
-                    if strbyte.encode('hex') == 'f9':
-                        print 'Command failed to execute...'
-                        self.data_queue.append(('command_executed', 'False'))
+                        # If command not successfully executed:
+                        if strbyte.encode('hex') == 'f9':
+                            print 'Command failed to execute...'
+                            self.data_queue.append(('command_executed', 'False'))
 
                 # Get next byte
                 lastbyte = strbyte
                 strbyte = self.ser.read()
-
     def getJPG(self):
         strbyte = self.ser.read()
-        lastbyte = ''
-
+        nextbyte = ''
         while strbyte != '':
-            self.databuffer += strbyte
-
-            if lastbyte.encode("hex") == 'ff' and strbyte.encode('hex') == 'd9':
+            nextbyte = self.ser.read()
+            if strbyte.encode('hex') == '7e':
+                if nextbyte.encode('hex') == '00': 
+                    for x in range(0,6):
+                        dump = self.ser.read()
+                    nextbyte = self.ser.read()    
+                else:
+                    self.databuffer += strbyte
+                    self.databuffer += nextbyte
+            elif strbyte.encode("hex") == 'ff' and nextbyte.encode('hex') == 'd9':
+                self.databuffer += strbyte
+                self.databuffer += nextbyte
                 return self.databuffer
-    
-            lastbyte = strbyte
-            strbyte = self.ser.read()
-
+            else:                
+                if not nextbyte.encode('hex') == '7e':
+                    self.databuffer += strbyte
+            strbyte = nextbyte
         # End of JPG was not sent or detected
         return 'error'
 

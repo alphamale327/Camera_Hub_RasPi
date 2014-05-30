@@ -9,4 +9,3 @@ fclose($fh);
  
 header("Location: index.html"); // Return to frontend (index.html)
 ?>
-\ No newline at end of file
